@@ -35,9 +35,22 @@ class MyWebServer(socketserver.BaseRequestHandler):
         data_str = self.data.decode('utf-8')
         print ("Got a request of: %s\n" % data_str)
 
+
         method = data_str.split(' ')[0]
         if method == "GET":
             path = data_str.split(' ')[1]
+            
+            if ".." in path:
+                response = "HTTP/1.1 404 Path Not Found\n\n"
+                self.request.sendall(response.encode())
+                return
+
+            if not path.endswith("/") and os.path.isdir(os.path.join(directory, path.lstrip('/'))):
+                new_path = path+"/"
+                redirect_response = "HTTP/1.1 301 Moved to\nLocation: "+new_path+"\n\n"
+                self.request.sendall(redirect_response.encode())
+                return
+            
             content_type = "text/plain"
             if path.endswith(".html"):
                 content_type = "text/html"
