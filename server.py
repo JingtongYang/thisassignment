@@ -1,5 +1,6 @@
-#  coding: utf-8 
+#  coding: utf-8  
 import socketserver
+import os
 
 # Copyright 2013 Abram Hindle, Eddie Antonio Santos
 # 
@@ -31,11 +32,51 @@ class MyWebServer(socketserver.BaseRequestHandler):
     
     def handle(self):
         self.data = self.request.recv(1024).strip()
-        print ("Got a request of: %s\n" % self.data)
-        self.request.sendall(bytearray("OK",'utf-8'))
+        data_str = self.data.decode('utf-8')
+        print ("Got a request of: %s\n" % data_str)
+
+        method = data_str.split(' ')[0]
+        if method == "GET":
+            path = data_str.split(' ')[1]
+            content_type = "text/plain"
+            if path.endswith(".html"):
+                content_type = "text/html"
+            elif path.endswith(".css"):
+                content_type = "text/css"
+            
+            path = os.path.join(directory, path.lstrip('/'))#change path
+            if path and os.path.isfile(path):
+                with open(path, 'rb') as file:
+                    content = file.read()
+                response = "HTTP/1.1 200 OK\nContent-Type:"+content_type+"\n\n"
+                self.request.sendall(response.encode())
+                self.request.sendall(content)
+            elif path and path.endswith("/"):
+                path = os.path.join(path, "index.html")
+                if path and os.path.isfile(path):
+                    with open(path, 'rb') as file:
+                        content = file.read()
+                    content_type = "text/html"
+                    response = "HTTP/1.1 200 OK\nContent-Type:"+content_type+"\n\n"
+                    self.request.sendall(response.encode())
+                    self.request.sendall(content) 
+                else:
+                    response = "HTTP/1.1 404 Path Not Found\n\n"
+                    self.request.sendall(response.encode())
+            
+            else:
+                response = "HTTP/1.1 404 Path Not Found\n\n"
+                self.request.sendall(response.encode())
+        else:
+            response = "HTTP/1.1 405 Method Not Allowed\n\n"
+            self.request.sendall(response.encode())
+        
+ 
+
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8080
+    directory = "./www"#serve from folder
 
     socketserver.TCPServer.allow_reuse_address = True
     # Create the server, binding to localhost on port 8080
